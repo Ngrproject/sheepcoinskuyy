@@ -113,8 +113,8 @@
         <div id="loginArea" style="min-height: 60vh; display:flex; flex-direction:column; justify-content:center;">
             <div class="card" style="text-align: center;">
                 <h2>Selamat Datang</h2>
-                <p>Hubungkan MetaMask Anda untuk mengakses Dashboard.</p>
-                <button class="btn-connect" onclick="connectWallet()">🦊 Connect MetaMask</button>
+                <p>Hubungkan MetaMask Anda untuk verifikasi identitas dan masuk ke Dashboard.</p>
+                <button id="btnConnect" class="btn-connect" onclick="connectWallet()">🦊 Connect & Sign Login</button>
             </div>
         </div>
 
@@ -175,20 +175,42 @@
     let userAddress = null;
     let autoMineExpiry = 0;
     
-    // VARIABEL KONTROL STOP
+    // VARIABEL KONTROL STOP (Session ID)
     let isAutoLoopRunning = false;
-    let currentSessionId = 0; // ID unik untuk setiap sesi mining
+    let currentSessionId = 0; 
 
+    // --- 1. FITUR LOGIN DENGAN SIGNATURE METAMASK ---
     async function connectWallet() {
+        const btn = document.getElementById('btnConnect');
         if (window.ethereum) {
             try {
+                btn.innerText = "Meminta Akses...";
+                // 1. Minta Akses Akun
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                userAddress = accounts[0];
+                const tempAddress = accounts[0];
+
+                // 2. Minta Tanda Tangan (Signature) untuk Verifikasi
+                btn.innerText = "Cek Popup MetaMask...";
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                
+                const message = `Selamat Datang di SheepCoin!\n\nDompet: ${tempAddress}\nJam: ${new Date().toLocaleString()}\n\nSilakan tanda tangan pesan ini untuk verifikasi login.`;
+                
+                // Ini akan memunculkan popup Sign
+                await signer.signMessage(message);
+
+                // 3. Jika sukses Sign, masuk ke dashboard
+                userAddress = tempAddress;
                 document.getElementById('loginArea').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 document.getElementById('myAddress').innerText = userAddress.substring(0,8) + "..." + userAddress.substring(36);
                 updateData();
-            } catch (err) {}
+
+            } catch (err) {
+                console.error(err);
+                alert("Login Gagal atau Dibatalkan oleh User.");
+                btn.innerText = "🦊 Connect & Sign Login";
+            }
         } else { alert("Install MetaMask!"); }
     }
 
@@ -220,11 +242,10 @@
                 const s = timeLeft % 60;
                 timerDisplay.innerText = `${m}m ${s}s`;
                 
-                // Mulai Auto Mine hanya jika belum jalan
                 if (!isAutoLoopRunning) { 
                     isAutoLoopRunning = true; 
-                    currentSessionId++; // Buat sesi baru
-                    autoMineLoop(currentSessionId); // Jalankan dengan ID sesi
+                    currentSessionId++; 
+                    autoMineLoop(currentSessionId); 
                 }
             } else {
                 rentalPanel.style.display = 'block';
@@ -324,32 +345,38 @@
         } catch(e) { alert("Error Server"); }
     }
 
-    // --- LOGIKA STOP (DIPERBAIKI DENGAN SESSION ID) ---
+    // --- 2. FITUR STOP AUTO MINING (DIPERBAIKI) ---
     function stopAutoMine() {
         if(confirm("Yakin hentikan Auto Mining?")) {
-            // 1. Matikan Flag Global
+            // Matikan Flag
             isAutoLoopRunning = false; 
-            // 2. Ganti Session ID (Ini akan membatalkan loop yang sedang berjalan)
-            currentSessionId++; 
+            // Ganti Session ID untuk memutus loop hash yang sedang berjalan
+            currentSessionId = currentSessionId + 1; 
             
-            document.getElementById('statusLog').innerText = "🛑 Berhenti...";
+            // UI Feedback Langsung
+            const log = document.getElementById('statusLog');
+            log.innerHTML = "<span style='color:red;'>🛑 STOPPED (User Request)</span>";
             document.getElementById('btnStop').style.display = 'none';
-            setTimeout(updateData, 500); 
+            document.getElementById('btnMine').disabled = false;
         }
     }
 
     async function autoMineLoop(sessionId) {
-        // Loop ini hanya akan jalan jika sessionId-nya VALID (sesuai yang aktif sekarang)
         while(isAutoLoopRunning && sessionId === currentSessionId) {
             document.getElementById('statusLog').innerHTML = "🤖 Bot: <span style='color:white;'>Mencari hash...</span>";
             
+            // Tunggu proses mining selesai satu block
             await startMining(true, sessionId);
             
-            // Cek Session ID lagi setelah mining selesai
-            if (sessionId !== currentSessionId) break; 
+            // Pengecekan Kritis: Apakah user menekan stop saat startMining berjalan?
+            if (sessionId !== currentSessionId || !isAutoLoopRunning) {
+                break; // Keluar loop total
+            }
             
+            // Jeda 2 detik
             await new Promise(r => setTimeout(r, 2000));
             
+            // Cek waktu sewa
             if(Date.now()/1000 > autoMineExpiry) { 
                 isAutoLoopRunning = false; 
                 updateData(); 
@@ -364,27 +391,28 @@
         if(!isAuto) log.innerText = "Menghubungkan...";
 
         try {
+            // Jika auto mining sudah distop sebelum fetch job, batalkan
+            if(isAuto && sessionId !== currentSessionId) return;
+
             const jobRes = await fetch('/get_mining_job');
             const job = await jobRes.json();
             const target = "0".repeat(job.difficulty);
             
-            // CEK 1: Jika distop saat fetch
-            if(isAuto && sessionId !== currentSessionId) return;
-
             let proof = 0;
             let found = false;
             const lastProof = job.last_proof;
 
             await new Promise(resolve => {
                 const miningStep = () => {
-                    // CEK 2: Jika distop saat looping hash (Critical Check)
+                    // --- PENGECEKAN KRITIS UNTUK STOP ---
+                    // Jika session ID berubah (user klik stop), hentikan paksa loop hashing
                     if(isAuto && sessionId !== currentSessionId) {
-                        resolve(); // Keluar paksa
+                        resolve(); 
                         return;
                     }
 
-                    // Loop hashing diperkecil agar UI lebih responsif terhadap klik Stop
-                    for(let i=0; i<1000; i++) { 
+                    // Loop hashing diperkecil ke 500 (biar UI lebih responsif terhadap tombol stop)
+                    for(let i=0; i<500; i++) { 
                         const guess = `${lastProof}${proof}`;
                         const hash = sha256(guess); 
                         if(hash.startsWith(target)) { found = true; break; }
@@ -394,14 +422,14 @@
                     if(found) resolve(); 
                     else if(!isAutoLoopRunning && isAuto) resolve(); 
                     else if(proof > 10000000) { resolve(); } 
-                    else setTimeout(miningStep, 0);
+                    else setTimeout(miningStep, 0); // Yield ke main thread
                 };
                 miningStep();
             });
 
-            // Submit hanya jika ketemu & Sesi masih valid
+            // Submit hanya jika ketemu DAN sesi masih valid (belum distop)
             if(found) {
-                if(isAuto && sessionId !== currentSessionId) return; // Jangan submit jika sudah stop
+                if(isAuto && sessionId !== currentSessionId) return; 
 
                 if(!isAuto) log.innerText = "Hash ditemukan! Mengirim...";
                 const res = await fetch('/submit_block', {
