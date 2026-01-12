@@ -301,9 +301,27 @@ def my_transactions():
             'timestamp': r[4], # Ini timestamp dari block
             'type': tx_type
         })
+
+
         
     conn.close()
     return jsonify({'transactions': txs})
+
+@app.route('/cancel_auto_mine', methods=['POST'])
+def cancel_auto_mine():
+    data = request.get_json()
+    wallet = data.get('address')
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Reset waktu expired menjadi 0 (Hangus)
+    c.execute("UPDATE users SET auto_mine_expires = 0 WHERE wallet=%s", (wallet,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Auto Mining Dibatalkan. Sisa waktu hangus.'})
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -71,10 +71,15 @@
         button:hover { transform: translateY(-3px); }
         button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
+        /* WARNA TOMBOL */
         .btn-connect { background: linear-gradient(45deg, var(--accent-color), #e2761b); color: white; }
         .btn-mine { background: linear-gradient(45deg, var(--primary-color), #6a0dad); color: white; margin-top: 15px; }
         .btn-send { background: linear-gradient(45deg, var(--secondary-color), #00a8cc); color: #0f172a; margin-top: 15px; }
-        .btn-stop { background: linear-gradient(45deg, var(--danger-color), #c0392b); color: white; margin-top: 15px; }
+        
+        /* Tombol Kontrol Auto Mine */
+        .btn-stop { background: linear-gradient(45deg, #f39c12, #d35400); color: white; margin-top: 10px; } /* Pause Warnanya Orange */
+        .btn-resume { background: linear-gradient(45deg, var(--success-color), #218c74); color: white; margin-top: 10px; display: none; } 
+        .btn-cancel { background: linear-gradient(45deg, var(--danger-color), #c0392b); color: white; margin-top: 10px; display: none; } /* Cancel Merah */
 
         .grid-packages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
         .pkg-btn {
@@ -113,7 +118,7 @@
         <div id="loginArea" style="min-height: 60vh; display:flex; flex-direction:column; justify-content:center;">
             <div class="card" style="text-align: center;">
                 <h2>Selamat Datang</h2>
-                <p>Hubungkan MetaMask Anda untuk verifikasi identitas dan masuk ke Dashboard.</p>
+                <p>Hubungkan MetaMask Anda untuk masuk ke Dashboard.</p>
                 <button id="btnConnect" class="btn-connect" onclick="connectWallet()">🦊 Connect & Sign Login</button>
             </div>
         </div>
@@ -146,7 +151,10 @@
                 <div id="statusLog" style="color: #ffd700; margin-top: 20px; font-weight: 500; min-height:25px; text-align: center;">Idle</div>
                 
                 <button class="btn-mine" id="btnMine" onclick="startMining(false)">⛏️ Manual Mining (Sekali)</button>
-                <button class="btn-stop" id="btnStop" onclick="stopAutoMine()" style="display: none;">🛑 STOP Auto Mining</button>
+                
+                <button class="btn-stop" id="btnStop" onclick="stopAutoMine()" style="display: none;">⏸️ PAUSE Auto Mining</button>
+                <button class="btn-resume" id="btnResume" onclick="resumeAutoMine()">▶️ RESUME Auto Mining</button>
+                <button class="btn-cancel" id="btnCancel" onclick="cancelAutoMine()">🗑️ BATALKAN & HANGUSKAN</button>
             </div>
 
             <div class="card">
@@ -178,7 +186,7 @@
     // VARIABEL KONTROL
     let isAutoLoopRunning = false;
     let currentSessionId = 0; 
-    let isManuallyStopped = false; // <--- PERBAIKAN: Flag untuk mencatat jika user klik stop
+    let isManuallyStopped = false; 
 
     // --- 1. FITUR LOGIN ---
     async function connectWallet() {
@@ -209,7 +217,7 @@
         } else { alert("Install MetaMask!"); }
     }
 
-    // --- 2. UPDATE DATA & LOGIKA RESTART OTOMATIS ---
+    // --- 2. UPDATE DATA & LOGIKA UI ---
     async function updateData() {
         if(!userAddress) return;
         
@@ -224,45 +232,59 @@
             
             const now = data.server_time;
             autoMineExpiry = data.auto_mine_expires;
+            
             const rentalPanel = document.getElementById('rentalPanel');
             const activePanel = document.getElementById('activeRentalPanel');
             const btnStop = document.getElementById('btnStop');
+            const btnResume = document.getElementById('btnResume');
+            const btnCancel = document.getElementById('btnCancel');
             const timerDisplay = document.getElementById('timerDisplay');
 
             if (autoMineExpiry > now) {
-                // Waktu sewa masih aktif
+                // SEWA AKTIF
                 rentalPanel.style.display = 'none';
                 activePanel.style.display = 'block';
+                
+                // Selama paket aktif, tombol CANCEL selalu ada (untuk menghanguskan)
+                btnCancel.style.display = 'block';
                 
                 const timeLeft = Math.floor(autoMineExpiry - now);
                 const m = Math.floor(timeLeft / 60);
                 const s = timeLeft % 60;
                 timerDisplay.innerText = `${m}m ${s}s`;
                 
-                // PERBAIKAN DI SINI:
-                // Hanya nyalakan otomatis JIKA belum jalan DAN user TIDAK memberhentikan manual
+                // SKENARIO 1: Auto Mine Jalan Normal
                 if (!isAutoLoopRunning && !isManuallyStopped) { 
                     isAutoLoopRunning = true; 
                     currentSessionId++; 
                     autoMineLoop(currentSessionId); 
-                    btnStop.style.display = 'block'; // Tampilkan tombol stop
+                    
+                    btnStop.style.display = 'block';
+                    btnResume.style.display = 'none';
                 } 
-                // Jika user stop manual, tombol stop tetap sembunyi atau bisa diganti tombol "Resume"
+                // SKENARIO 2: Di-Pause oleh User
                 else if (isManuallyStopped) {
                     btnStop.style.display = 'none';
-                    // Opsional: Tampilkan status
-                    document.getElementById('statusLog').innerHTML = "<span style='color:red'>⏸️ PAUSED (Klik paket untuk refresh/resume)</span>";
-                } else {
+                    btnResume.style.display = 'block';
+                    document.getElementById('statusLog').innerHTML = "<span style='color:#f39c12'>⏸️ PAUSED (Klik Resume untuk lanjut)</span>";
+                }
+                else {
                     btnStop.style.display = 'block';
+                    btnResume.style.display = 'none';
                 }
 
             } else {
-                // Waktu habis
+                // SEWA HABIS / TIDAK AKTIF
                 rentalPanel.style.display = 'block';
                 activePanel.style.display = 'none';
+                
+                // Sembunyikan semua kontrol auto mine
                 btnStop.style.display = 'none';
+                btnResume.style.display = 'none';
+                btnCancel.style.display = 'none';
+                
                 isAutoLoopRunning = false;
-                isManuallyStopped = false; // Reset flag saat waktu habis
+                isManuallyStopped = false; 
             }
 
         } catch(e) {}
@@ -349,23 +371,56 @@
             const data = await res.json();
             if(data.success) { 
                 alert(data.message); 
-                isManuallyStopped = false; // RESET Flag agar mining jalan
+                isManuallyStopped = false; // Reset flag agar langsung jalan
                 updateData(); 
             } 
             else { alert("Gagal: " + data.message); }
         } catch(e) { alert("Error Server"); }
     }
 
-    // --- 3. FUNGSI STOP (DIPERBAIKI) ---
+    // --- 3. FUNGSI PAUSE (STOP SEMENTARA) ---
     function stopAutoMine() {
-        if(confirm("Yakin hentikan Auto Mining? (Waktu sewa tetap berjalan)")) {
-            isAutoLoopRunning = false; 
-            currentSessionId++; 
-            isManuallyStopped = true; // <--- AKTIFKAN REM TANGAN
-            
-            document.getElementById('statusLog').innerHTML = "<span style='color:red;'>🛑 STOPPED (User Request)</span>";
-            document.getElementById('btnStop').style.display = 'none';
-            document.getElementById('btnMine').disabled = false;
+        isAutoLoopRunning = false; 
+        currentSessionId++; 
+        isManuallyStopped = true; 
+        
+        document.getElementById('statusLog').innerHTML = "<span style='color:#f39c12;'>⏸️ PAUSED (Menunggu Resume...)</span>";
+        document.getElementById('btnStop').style.display = 'none';
+        document.getElementById('btnResume').style.display = 'block';
+        document.getElementById('btnMine').disabled = false;
+    }
+
+    // --- 4. FUNGSI RESUME ---
+    function resumeAutoMine() {
+        isManuallyStopped = false;
+        updateData(); // Trigger update untuk menyalakan loop kembali
+    }
+
+    // --- 5. FUNGSI CANCEL (HANGUSKAN) ---
+    async function cancelAutoMine() {
+        if(!confirm("⚠️ PERINGATAN: Apakah Anda yakin?\n\nWaktu sewa yang tersisa akan HANGUS dan tidak bisa dikembalikan. Auto mining akan berhenti total.")) return;
+
+        try {
+            // 1. Matikan Loop di Frontend Dulu
+            isAutoLoopRunning = false;
+            currentSessionId++;
+            isManuallyStopped = false; // Reset
+
+            // 2. Request ke Backend untuk hapus waktu di Database
+            const res = await fetch('/cancel_auto_mine', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ address: userAddress })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                alert("Auto Mining Dibatalkan.");
+                document.getElementById('statusLog').innerText = "🛑 Dibatalkan & Hangus.";
+                updateData(); // Refresh tampilan agar kembali ke menu paket
+            }
+        } catch(e) {
+            alert("Gagal menghubungi server.");
         }
     }
 
