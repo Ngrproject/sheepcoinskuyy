@@ -162,9 +162,9 @@ def buy_auto_mine():
     duration_minutes = data.get('minutes')
     cost = 0
     
-    if duration_minutes == 10: cost = 0.5
-    elif duration_minutes == 30: cost = 1.0
-    elif duration_minutes == 60: cost = 2.0
+    if duration_minutes == 10: cost = 5.0
+    elif duration_minutes == 30: cost = 10.0
+    elif duration_minutes == 60: cost = 18.0
     else: return jsonify({'success': False, 'message': 'Paket tidak valid'}), 400
     
     current_balance = get_balance(wallet)

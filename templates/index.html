@@ -174,7 +174,10 @@
 <script>
     let userAddress = null;
     let autoMineExpiry = 0;
+    
+    // VARIABEL KONTROL STOP
     let isAutoLoopRunning = false;
+    let currentSessionId = 0; // ID unik untuk setiap sesi mining
 
     async function connectWallet() {
         if (window.ethereum) {
@@ -217,10 +220,11 @@
                 const s = timeLeft % 60;
                 timerDisplay.innerText = `${m}m ${s}s`;
                 
-                // Pastikan loop jalan, tapi jangan double
+                // Mulai Auto Mine hanya jika belum jalan
                 if (!isAutoLoopRunning) { 
                     isAutoLoopRunning = true; 
-                    autoMineLoop(); 
+                    currentSessionId++; // Buat sesi baru
+                    autoMineLoop(currentSessionId); // Jalankan dengan ID sesi
                 }
             } else {
                 rentalPanel.style.display = 'block';
@@ -235,7 +239,6 @@
         loadChain();
     }
     
-    // FORMAT WAKTU KE LOKAL (WIB/GMT+7)
     function formatTime(timestamp) {
         return new Date(timestamp * 1000).toLocaleString('id-ID', {
             day: 'numeric', month: 'short', year: 'numeric',
@@ -263,7 +266,6 @@
                     let addr = tx.type === 'IN' ? tx.sender : tx.recipient;
                     if(tx.type !== 'MINING') addr = addr.substring(0,6)+'...'; else addr = 'Reward';
 
-                    // FIX: Tampilkan Waktu Lokal
                     let timeStr = tx.timestamp ? formatTime(tx.timestamp) : '-';
 
                     histHtml += `<div class="tx-item">
@@ -289,9 +291,7 @@
             let html = '';
             
             chainData.chain.forEach(b => {
-                // FIX: Tampilkan Waktu Lokal
                 let localTime = formatTime(b.timestamp);
-
                 html += `
                 <div class="block-item">
                     <div class="block-header">
@@ -324,29 +324,32 @@
         } catch(e) { alert("Error Server"); }
     }
 
+    // --- LOGIKA STOP (DIPERBAIKI DENGAN SESSION ID) ---
     function stopAutoMine() {
         if(confirm("Yakin hentikan Auto Mining?")) {
-            isAutoLoopRunning = false; // Flag dimatikan
+            // 1. Matikan Flag Global
+            isAutoLoopRunning = false; 
+            // 2. Ganti Session ID (Ini akan membatalkan loop yang sedang berjalan)
+            currentSessionId++; 
+            
             document.getElementById('statusLog').innerText = "🛑 Berhenti...";
             document.getElementById('btnStop').style.display = 'none';
-            // Paksa update tampilan
             setTimeout(updateData, 500); 
         }
     }
 
-    // FIX: BUG AUTO MINING TIDAK MAU BERHENTI
-    async function autoMineLoop() {
-        while(isAutoLoopRunning) {
+    async function autoMineLoop(sessionId) {
+        // Loop ini hanya akan jalan jika sessionId-nya VALID (sesuai yang aktif sekarang)
+        while(isAutoLoopRunning && sessionId === currentSessionId) {
             document.getElementById('statusLog').innerHTML = "🤖 Bot: <span style='color:white;'>Mencari hash...</span>";
             
-            await startMining(true);
+            await startMining(true, sessionId);
             
-            // Cek Ganda: Jika tombol stop ditekan saat mining, langsung break
-            if (!isAutoLoopRunning) break; 
+            // Cek Session ID lagi setelah mining selesai
+            if (sessionId !== currentSessionId) break; 
             
             await new Promise(r => setTimeout(r, 2000));
             
-            // Cek Expired
             if(Date.now()/1000 > autoMineExpiry) { 
                 isAutoLoopRunning = false; 
                 updateData(); 
@@ -354,7 +357,7 @@
         }
     }
 
-    async function startMining(isAuto) {
+    async function startMining(isAuto, sessionId = null) {
         const btn = document.getElementById('btnMine');
         const log = document.getElementById('statusLog');
         if(!isAuto) btn.disabled = true;
@@ -365,34 +368,41 @@
             const job = await jobRes.json();
             const target = "0".repeat(job.difficulty);
             
+            // CEK 1: Jika distop saat fetch
+            if(isAuto && sessionId !== currentSessionId) return;
+
             let proof = 0;
             let found = false;
             const lastProof = job.last_proof;
 
             await new Promise(resolve => {
                 const miningStep = () => {
-                    // Cek Ganda: Hentikan kalkulasi jika tombol stop ditekan
-                    if(isAuto && !isAutoLoopRunning) {
-                        resolve();
+                    // CEK 2: Jika distop saat looping hash (Critical Check)
+                    if(isAuto && sessionId !== currentSessionId) {
+                        resolve(); // Keluar paksa
                         return;
                     }
 
-                    for(let i=0; i<3000; i++) { 
+                    // Loop hashing diperkecil agar UI lebih responsif terhadap klik Stop
+                    for(let i=0; i<1000; i++) { 
                         const guess = `${lastProof}${proof}`;
                         const hash = sha256(guess); 
                         if(hash.startsWith(target)) { found = true; break; }
                         proof++;
                     }
+
                     if(found) resolve(); 
-                    else if(!isAutoLoopRunning && isAuto) resolve(); // Stop exit
-                    else if(proof > 10000000) { resolve(); } // Timeout safety
+                    else if(!isAutoLoopRunning && isAuto) resolve(); 
+                    else if(proof > 10000000) { resolve(); } 
                     else setTimeout(miningStep, 0);
                 };
                 miningStep();
             });
 
-            // Hanya submit jika benar-benar ketemu & tidak di-stop
-            if(found && (!isAuto || isAutoLoopRunning)) {
+            // Submit hanya jika ketemu & Sesi masih valid
+            if(found) {
+                if(isAuto && sessionId !== currentSessionId) return; // Jangan submit jika sudah stop
+
                 if(!isAuto) log.innerText = "Hash ditemukan! Mengirim...";
                 const res = await fetch('/submit_block', {
                     method: 'POST',
