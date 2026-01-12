@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Connect Wallet | SheepCoin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<style>
+    :root {
+        --primary: #8A2BE2;
+        --secondary: #00d4ff;
+        --bg: #0f172a;
+        --glass: rgba(255, 255, 255, 0.05);
+        --border: rgba(255, 255, 255, 0.1);
+    }
+    body{
+        background-color: var(--bg);
+        font-family:'Space Grotesk', sans-serif;
+        color:white;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        height:100vh;
+        margin: 0;
+        background-image: radial-gradient(circle at 10% 20%, rgba(90, 92, 106, 0.2) 0%, transparent 20%),
+                          radial-gradient(circle at 90% 80%, rgba(138, 43, 226, 0.2) 0%, transparent 20%);
+    }
+    .card{
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius:16px;
+        width: 350px;
+        border:1px solid var(--border);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    h2 { margin-top: 0; font-size: 1.8rem; }
+    .gradient-text {
+        background: linear-gradient(to right, var(--secondary), var(--primary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    button {
+        width: 100%;
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(45deg, #f6851b, #e2761b); /* Metamask Orange */
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 1rem;
+    }
+    button:hover { opacity: 0.9; transform: translateY(-2px); }
+    .metamask-logo { width: 24px; height: 24px; }
+    p { margin-top: 20px; font-size: 0.9rem; color: #ccc; }
+</style>
+</head>
+<body>
+<div class="card">
+    <h2>Welcome 🐑 <br><span class="gradient-text">SheepCoin</span></h2>
+    <p>Hubungkan MetaMask untuk masuk ke Dashboard Mining.</p>
+    
+    <button onclick="connectWallet()">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="metamask-logo">
+        Connect MetaMask
+    </button>
+    
+    <p id="status" style="color:#ff4757; height:20px;"></p>
+</div>
+
+<script>
+    async function connectWallet() {
+        const status = document.getElementById('status');
+        
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                status.innerText = "Connecting...";
+                // Request Account Access
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+
+                // Kirim Address ke Backend Flask untuk Login
+                const response = await fetch('/auth/metamask', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ address: account })
+                });
+
+                const data = await response.json();
+                if(data.status === 'success') {
+                    window.location.href = data.redirect;
+                } else {
+                    status.innerText = "Login Failed";
+                }
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = "User rejected connection";
+            }
+        } else {
+            status.innerText = "MetaMask not installed!";
+        }
+    }
+</script>
+</body>
+</html>
