@@ -8,21 +8,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: 'Space Grotesk'; padding: 20px; text-align: center; }
-        button { padding: 12px 20px; font-weight: bold; cursor: pointer; border:none; border-radius:8px; transition:0.3s; }
+        body { background: #0f172a; color: white; font-family: 'Space Grotesk'; padding: 20px; text-align: center; margin: 0; }
+        button { padding: 12px 20px; font-weight: bold; cursor: pointer; border:none; border-radius:8px; transition:0.3s; font-size: 0.9rem; }
         button:hover { transform: translateY(-2px); opacity:0.9; }
-        .btn-connect { background: #f6851b; color: white; font-size: 1.1rem; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-connect { background: #f6851b; color: white; padding: 15px 30px; font-size: 1.1rem; }
         .btn-mine { background: #8A2BE2; color: white; width:100%; margin-top:10px; }
+        .btn-stop { background: #ff4757; color: white; width:100%; margin-top:10px; display:none; }
         .btn-send { background: #00d4ff; color: #000; width:100%; margin-top:10px; }
         
+        /* Tombol Paket Sewa */
+        .grid-packages { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .pkg-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px; font-size: 0.8rem; }
+        .pkg-btn:hover { background: var(--primary); border-color: white; }
+
         .card { background: rgba(255,255,255,0.05); padding: 25px; margin: 15px auto; max-width: 600px; border-radius: 16px; border:1px solid rgba(255,255,255,0.1); }
-        input { padding: 12px; width: 90%; margin: 5px; background: rgba(0,0,0,0.3); border:1px solid #444; color:white; border-radius:8px; }
+        input { padding: 12px; width: 90%; margin: 5px 0; background: rgba(0,0,0,0.3); border:1px solid #444; color:white; border-radius:8px; box-sizing: border-box; }
         
-        /* Style untuk History */
-        .tx-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; }
-        .tx-in { color: #2ed573; }   /* Hijau untuk masuk */
-        .tx-out { color: #ff4757; }  /* Merah untuk keluar */
-        .tx-mine { color: #eccc68; } /* Kuning untuk mining */
+        .tx-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; align-items: center; }
+        .tx-in { color: #2ed573; } .tx-out { color: #ff4757; } .tx-mine { color: #eccc68; }
+        
+        #timerDisplay { font-size: 1.2rem; font-weight: bold; color: #2ed573; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -30,43 +37,56 @@
     <h1>🐑 SheepCoin Cloud</h1>
     
     <div id="loginArea">
-        <p>Hubungkan dompet untuk memulai.</p>
+        <p>Hubungkan MetaMask untuk Mining & Transaksi</p>
         <button class="btn-connect" onclick="connectWallet()">🦊 Connect MetaMask</button>
     </div>
 
     <div id="dashboard" style="display:none;">
-        <p>Wallet: <span id="myAddress" style="color:#00d4ff; font-family:monospace;">...</span></p>
+        <p>Dompet: <span id="myAddress" style="color:#00d4ff; font-family:monospace;">...</span></p>
         <h2 style="font-size:2.5rem; margin:10px 0;">Saldo: <span id="balance">0.0000</span> SHP</h2>
         
         <div class="card">
-            <h3>⛏️ Local Browser Mining</h3>
-            <p style="font-size:0.9rem; color:#ccc;">Gunakan device Anda untuk mencari blok baru.</p>
-            <div id="statusLog" style="color: #eccc68; margin-bottom: 10px; font-size:0.9rem; height:20px;">Idle</div>
-            <button class="btn-mine" id="btnMine" onclick="startMining()">Start Mining (PoW)</button>
+            <h3>🤖 Auto Mining Rental</h3>
+            <p style="font-size:0.8rem; color:#aaa;">Sewa bot untuk mining otomatis tanpa klik.</p>
+            
+            <div id="rentalPanel">
+                <div class="grid-packages">
+                    <button class="pkg-btn" onclick="buyPackage(10)">10 Menit<br>(0.5 SHP)</button>
+                    <button class="pkg-btn" onclick="buyPackage(30)">30 Menit<br>(1 SHP)</button>
+                    <button class="pkg-btn" onclick="buyPackage(60)">1 Jam<br>(2 SHP)</button>
+                </div>
+            </div>
+
+            <div id="activeRentalPanel" style="display:none; margin-top:15px; padding:10px; background:rgba(46, 213, 115, 0.1); border-radius:8px;">
+                <span>⚡ Auto Mining Sedang Aktif!</span>
+                <div id="timerDisplay">00:00:00</div>
+                <p style="font-size:0.8rem;">(Jangan tutup tab browser ini)</p>
+            </div>
+            
+            <div id="statusLog" style="color: #eccc68; margin-top: 10px; font-size:0.9rem; height:20px;">Idle</div>
+            
+            <button class="btn-mine" id="btnMine" onclick="startMining(false)">⛏️ Manual Mining (Sekali)</button>
+            <button class="btn-stop" id="btnStop" onclick="stopAutoMine()">🛑 STOP Auto Mining</button>
         </div>
 
         <div class="card">
             <h3>💸 Kirim Koin</h3>
             <input id="recipient" placeholder="Address Penerima (0x...)">
             <input id="amount" placeholder="Jumlah (SHP)" type="number">
-            <button class="btn-send" id="btnSend" onclick="sendCoin()">🚀 Kirim (Sign with MetaMask)</button>
+            <button class="btn-send" id="btnSend" onclick="sendCoin()">🚀 Kirim (Sign)</button>
         </div>
 
         <div class="card">
-            <h3>📜 Riwayat Transaksi Saya</h3>
-            <div id="myHistory" style="text-align:left;">
-                <p style="text-align:center; color:#666;">Memuat data...</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>🔗 Global Blockchain (Live)</h3>
-            <div id="chainList" style="text-align:left; font-size:0.8rem;"></div>
+            <h3>📜 Riwayat (Terkini)</h3>
+            <div id="myHistory"></div>
         </div>
     </div>
 
 <script>
     let userAddress = null;
+    let autoMineExpiry = 0; // Timestamp kapan sewa habis
+    let isAutoLoopRunning = false;
+    let timerInterval = null;
 
     async function connectWallet() {
         if (window.ethereum) {
@@ -77,15 +97,15 @@
                 document.getElementById('dashboard').style.display = 'block';
                 document.getElementById('myAddress').innerText = userAddress.substring(0,6) + "..." + userAddress.substring(38);
                 updateData();
-            } catch (err) { alert("User menolak koneksi"); }
+            } catch (err) {}
         } else { alert("Install MetaMask!"); }
     }
 
     async function updateData() {
         if(!userAddress) return;
         
-        // 1. Ambil Saldo
         try {
+            // Ambil Info Wallet & Status Auto Mine
             let res = await fetch('/wallet_info', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -93,23 +113,49 @@
             });
             let data = await res.json();
             document.getElementById('balance').innerText = data.balance.toFixed(4);
-        } catch(e) {}
+            
+            // Cek status Auto Mine
+            const now = data.server_time;
+            autoMineExpiry = data.auto_mine_expires;
+            
+            const rentalPanel = document.getElementById('rentalPanel');
+            const activePanel = document.getElementById('activeRentalPanel');
+            const btnStop = document.getElementById('btnStop');
+            const timerDisplay = document.getElementById('timerDisplay');
 
-        // 2. Ambil Global Chain
-        try {
-            let chainRes = await fetch('/chain');
-            let chainData = await chainRes.json();
-            let html = '';
-            chainData.chain.forEach(b => {
-                html += `<div style="border-bottom:1px solid #333; padding:5px; color:#aaa;">
-                    Block #${b.index} | Miner: ${b.miner.substring(0,6)}... | Proof: ${b.proof}
-                </div>`;
-            });
-            document.getElementById('chainList').innerHTML = html;
-        } catch(e) {}
+            if (autoMineExpiry > now) {
+                // Aktif
+                rentalPanel.style.display = 'none';
+                activePanel.style.display = 'block';
+                btnStop.style.display = 'block';
+                
+                // Hitung mundur timer
+                const timeLeft = Math.floor(autoMineExpiry - now);
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                timerDisplay.innerText = `${m}m ${s}s`;
+                
+                // Trigger Loop jika belum jalan
+                if (!isAutoLoopRunning) {
+                    isAutoLoopRunning = true;
+                    autoMineLoop();
+                }
+            } else {
+                // Tidak Aktif
+                rentalPanel.style.display = 'block';
+                activePanel.style.display = 'none';
+                btnStop.style.display = 'none';
+                isAutoLoopRunning = false;
+            }
 
-        // 3. Ambil Riwayat Transaksi Saya (BARU)
-        try {
+        } catch(e) {}
+        
+        // Load History (Kode sama seperti sebelumnya, dipersingkat)
+        loadHistory();
+    }
+    
+    async function loadHistory() {
+         try {
             let histRes = await fetch('/my_transactions', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -117,138 +163,149 @@
             });
             let histData = await histRes.json();
             let histHtml = '';
-            
-            if(histData.transactions.length === 0) {
-                histHtml = '<p style="text-align:center; color:#666;">Belum ada transaksi.</p>';
-            } else {
-                histData.transactions.forEach(tx => {
-                    let icon, colorClass, label;
-                    
-                    if(tx.type === 'MINING') {
-                        icon = '🎁'; colorClass = 'tx-mine'; label = 'Mining Reward';
-                    } else if (tx.type === 'IN') {
-                        icon = '⬇️'; colorClass = 'tx-in'; label = 'Terima dari ' + tx.sender.substring(0,6);
-                    } else {
-                        icon = '⬆️'; colorClass = 'tx-out'; label = 'Kirim ke ' + tx.recipient.substring(0,6);
-                    }
-
-                    histHtml += `
-                        <div class="tx-item">
-                            <span>${icon} ${label}</span>
-                            <span class="${colorClass}">${tx.type === 'OUT' ? '-' : '+'}${parseFloat(tx.amount).toFixed(2)} SHP</span>
-                        </div>
-                    `;
-                });
-            }
+            histData.transactions.forEach(tx => {
+                let color = tx.type === 'MINING' ? 'tx-mine' : (tx.type === 'IN' ? 'tx-in' : 'tx-out');
+                let sign = tx.type === 'OUT' ? '-' : '+';
+                let icon = tx.type === 'MINING' ? '🎁' : (tx.type === 'IN' ? '⬇️' : '⬆️');
+                
+                histHtml += `<div class="tx-item">
+                    <span>${icon} ${tx.type}</span>
+                    <span class="${color}">${sign}${parseFloat(tx.amount).toFixed(4)}</span>
+                </div>`;
+            });
             document.getElementById('myHistory').innerHTML = histHtml;
         } catch(e) {}
     }
 
-    // --- LOGIKA MINING ---
-    async function startMining() {
+    // --- LOGIKA SEWA ---
+    async function buyPackage(minutes) {
+        if(!confirm(`Sewa Auto Mining ${minutes} menit?`)) return;
+        
+        try {
+            const res = await fetch('/buy_auto_mine', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ address: userAddress, minutes: minutes })
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert(data.message);
+                updateData();
+            } else {
+                alert("Gagal: " + data.message);
+            }
+        } catch(e) { alert("Error Server"); }
+    }
+
+    function stopAutoMine() {
+        if(confirm("Yakin hentikan Auto Mining? Waktu sewa akan tetap berjalan habis.")) {
+            isAutoLoopRunning = false;
+            document.getElementById('statusLog').innerText = "🛑 Auto Mining Dihentikan Manual";
+            document.getElementById('btnStop').style.display = 'none';
+        }
+    }
+
+    // --- AUTO MINING LOOP ---
+    async function autoMineLoop() {
+        const log = document.getElementById('statusLog');
+        
+        while(isAutoLoopRunning) {
+            log.innerText = "🤖 Auto Mining: Sedang mencari block...";
+            await startMining(true); // true = mode otomatis (silent)
+            
+            // Jeda 2 detik sebelum mining lagi supaya tidak spamming parah
+            await new Promise(r => setTimeout(r, 2000));
+            
+            // Cek lagi apakah expired
+            if(Date.now()/1000 > autoMineExpiry) {
+                isAutoLoopRunning = false;
+                log.innerText = "⚠️ Waktu Sewa Habis!";
+                updateData();
+            }
+        }
+    }
+
+    // --- CORE MINING FUNCTION ---
+    async function startMining(isAuto) {
         const btn = document.getElementById('btnMine');
         const log = document.getElementById('statusLog');
-        btn.disabled = true;
-        log.innerText = "Mengambil data blok...";
+        if(!isAuto) btn.disabled = true;
 
         try {
             const jobRes = await fetch('/get_mining_job');
             const job = await jobRes.json();
-            const lastProof = job.last_proof;
             const target = "0".repeat(job.difficulty);
             
-            log.innerText = "Mencari Hash...";
             let proof = 0;
             let found = false;
-            
-            const miningLoop = async () => {
-                for(let i=0; i<5000; i++) {
-                    const guess = `${lastProof}${proof}`;
-                    const hash = sha256(guess); 
-                    if(hash.startsWith(target)) {
-                        found = true;
-                        submitProof(proof);
-                        return;
+            const lastProof = job.last_proof;
+
+            // Kita pakai Promise agar loop tidak memblokir UI (render)
+            await new Promise(resolve => {
+                const miningStep = () => {
+                    // Coba 2000 hash per frame
+                    for(let i=0; i<2000; i++) {
+                        const guess = `${lastProof}${proof}`;
+                        const hash = sha256(guess); 
+                        if(hash.startsWith(target)) {
+                            found = true;
+                            break;
+                        }
+                        proof++;
                     }
-                    proof++;
-                }
-                if(!found) {
-                    log.innerText = `Mining... Proof: ${proof}`;
-                    setTimeout(miningLoop, 0); 
-                }
-            };
-            miningLoop();
-        } catch(e) { 
-            log.innerText = "Error koneksi"; 
-            btn.disabled = false; 
-        }
-    }
-
-    async function submitProof(proof) {
-        const log = document.getElementById('statusLog');
-        log.innerText = `Hash ditemukan! Mengirim ke server...`;
-        try {
-            const res = await fetch('/submit_block', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ proof: proof, miner: userAddress })
+                    
+                    if(found) resolve(); 
+                    else if(!isAutoLoopRunning && isAuto) resolve(); // Stop jika tombol stop ditekan
+                    else setTimeout(miningStep, 0);
+                };
+                miningStep();
             });
-            const data = await res.json();
-            if(data.success) {
-                log.innerText = `✅ SUKSES! Reward +${data.reward} SHP`;
-                updateData();
-            } else {
-                log.innerText = `❌ Ditolak Server`;
+
+            if(found) {
+                const res = await fetch('/submit_block', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ proof: proof, miner: userAddress })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    const msg = `✅ Block #${data.index} Found! Reward: ${data.reward} SHP`;
+                    log.innerText = msg;
+                    if(!isAuto) alert(msg);
+                }
             }
-        } catch(e) {}
-        document.getElementById('btnMine').disabled = false;
+
+        } catch(e) { console.error(e); }
+        
+        if(!isAuto) btn.disabled = false;
+        if(!isAuto) updateData();
     }
 
-    // --- LOGIKA TRANSFER DENGAN METAMASK SIGNING (BARU) ---
+    // --- KIRIM KOIN ---
     async function sendCoin() {
         const recipient = document.getElementById('recipient').value;
         const amount = document.getElementById('amount').value;
         const btn = document.getElementById('btnSend');
-
-        if(!recipient || !amount) { alert("Isi data lengkap!"); return; }
-
+        
         try {
-            // 1. Trigger MetaMask Sign
-            btn.innerText = "🦊 Menunggu Konfirmasi...";
-            btn.disabled = true;
-
+            btn.innerText = "Sign MetaMask...";
             const provider = new ethers.providers.Web3Provider(window.ethereum);
             const signer = provider.getSigner();
+            await signer.signMessage(`Kirim ${amount} SHP ke ${recipient}`);
             
-            // Pesan yang muncul di MetaMask
-            const message = `Konfirmasi Transfer SheepCoin:\n\nJumlah: ${amount} SHP\nKe: ${recipient}\n\n(Ini tidak memakan gas fee ETH)`;
-            
-            // Pop-up MetaMask muncul di sini
-            await signer.signMessage(message);
-
-            // 2. Jika User klik "Sign", kirim ke backend
             btn.innerText = "Mengirim...";
-            const res = await fetch('/transact', {
+            await fetch('/transact', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sender: userAddress, recipient: recipient, amount: amount })
             });
-            
-            alert("Transaksi Berhasil!");
-            document.getElementById('recipient').value = '';
-            document.getElementById('amount').value = '';
+            alert("Berhasil!");
             updateData();
-
-        } catch (err) {
-            console.error(err);
-            alert("Transaksi Dibatalkan oleh User");
-        }
-        
-        btn.innerText = "🚀 Kirim (Sign with MetaMask)";
-        btn.disabled = false;
+        } catch(e) { alert("Batal"); }
+        btn.innerText = "🚀 Kirim (Sign)";
     }
     
-    // Auto refresh data setiap 5 detik
     setInterval(updateData, 5000);
 </script>
 </body>
