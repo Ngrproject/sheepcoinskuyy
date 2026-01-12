@@ -175,31 +175,27 @@
     let userAddress = null;
     let autoMineExpiry = 0;
     
-    // VARIABEL KONTROL STOP (Session ID)
+    // VARIABEL KONTROL
     let isAutoLoopRunning = false;
     let currentSessionId = 0; 
+    let isManuallyStopped = false; // <--- PERBAIKAN: Flag untuk mencatat jika user klik stop
 
-    // --- 1. FITUR LOGIN DENGAN SIGNATURE METAMASK ---
+    // --- 1. FITUR LOGIN ---
     async function connectWallet() {
         const btn = document.getElementById('btnConnect');
         if (window.ethereum) {
             try {
                 btn.innerText = "Meminta Akses...";
-                // 1. Minta Akses Akun
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const tempAddress = accounts[0];
 
-                // 2. Minta Tanda Tangan (Signature) untuk Verifikasi
                 btn.innerText = "Cek Popup MetaMask...";
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
                 
-                const message = `Selamat Datang di SheepCoin!\n\nDompet: ${tempAddress}\nJam: ${new Date().toLocaleString()}\n\nSilakan tanda tangan pesan ini untuk verifikasi login.`;
-                
-                // Ini akan memunculkan popup Sign
+                const message = `Login SheepCoin\n\nDompet: ${tempAddress}\nWaktu: ${new Date().toLocaleString()}`;
                 await signer.signMessage(message);
 
-                // 3. Jika sukses Sign, masuk ke dashboard
                 userAddress = tempAddress;
                 document.getElementById('loginArea').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
@@ -207,13 +203,13 @@
                 updateData();
 
             } catch (err) {
-                console.error(err);
-                alert("Login Gagal atau Dibatalkan oleh User.");
+                alert("Login Gagal.");
                 btn.innerText = "🦊 Connect & Sign Login";
             }
         } else { alert("Install MetaMask!"); }
     }
 
+    // --- 2. UPDATE DATA & LOGIKA RESTART OTOMATIS ---
     async function updateData() {
         if(!userAddress) return;
         
@@ -234,24 +230,39 @@
             const timerDisplay = document.getElementById('timerDisplay');
 
             if (autoMineExpiry > now) {
+                // Waktu sewa masih aktif
                 rentalPanel.style.display = 'none';
                 activePanel.style.display = 'block';
-                btnStop.style.display = 'block';
+                
                 const timeLeft = Math.floor(autoMineExpiry - now);
                 const m = Math.floor(timeLeft / 60);
                 const s = timeLeft % 60;
                 timerDisplay.innerText = `${m}m ${s}s`;
                 
-                if (!isAutoLoopRunning) { 
+                // PERBAIKAN DI SINI:
+                // Hanya nyalakan otomatis JIKA belum jalan DAN user TIDAK memberhentikan manual
+                if (!isAutoLoopRunning && !isManuallyStopped) { 
                     isAutoLoopRunning = true; 
                     currentSessionId++; 
                     autoMineLoop(currentSessionId); 
+                    btnStop.style.display = 'block'; // Tampilkan tombol stop
+                } 
+                // Jika user stop manual, tombol stop tetap sembunyi atau bisa diganti tombol "Resume"
+                else if (isManuallyStopped) {
+                    btnStop.style.display = 'none';
+                    // Opsional: Tampilkan status
+                    document.getElementById('statusLog').innerHTML = "<span style='color:red'>⏸️ PAUSED (Klik paket untuk refresh/resume)</span>";
+                } else {
+                    btnStop.style.display = 'block';
                 }
+
             } else {
+                // Waktu habis
                 rentalPanel.style.display = 'block';
                 activePanel.style.display = 'none';
                 btnStop.style.display = 'none';
                 isAutoLoopRunning = false;
+                isManuallyStopped = false; // Reset flag saat waktu habis
             }
 
         } catch(e) {}
@@ -262,7 +273,6 @@
     
     function formatTime(timestamp) {
         return new Date(timestamp * 1000).toLocaleString('id-ID', {
-            day: 'numeric', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
     }
@@ -283,10 +293,9 @@
                 histData.transactions.forEach(tx => {
                     let color = tx.type === 'MINING' ? 'tx-mine' : (tx.type === 'IN' ? 'tx-in' : 'tx-out');
                     let sign = tx.type === 'OUT' ? '-' : '+';
-                    let icon = tx.type === 'MINING' ? '🎁' : (tx.type === 'IN' ? '⬇️ From:' : '⬆️ To:');
+                    let icon = tx.type === 'MINING' ? '🎁' : (tx.type === 'IN' ? '⬇️' : '⬆️');
                     let addr = tx.type === 'IN' ? tx.sender : tx.recipient;
                     if(tx.type !== 'MINING') addr = addr.substring(0,6)+'...'; else addr = 'Reward';
-
                     let timeStr = tx.timestamp ? formatTime(tx.timestamp) : '-';
 
                     histHtml += `<div class="tx-item">
@@ -310,7 +319,6 @@
             let chainRes = await fetch('/chain');
             let chainData = await chainRes.json();
             let html = '';
-            
             chainData.chain.forEach(b => {
                 let localTime = formatTime(b.timestamp);
                 html += `
@@ -324,8 +332,7 @@
                         <span>Miner: <span style="color:var(--accent-color);">${b.miner.substring(0,8)}...</span></span>
                         <span>Proof: <strong>${b.proof}</strong></span>
                     </div>
-                </div>
-                `;
+                </div>`;
             });
             document.getElementById('chainList').innerHTML = html;
         } catch(e) {}
@@ -340,43 +347,38 @@
                 body: JSON.stringify({ address: userAddress, minutes: minutes })
             });
             const data = await res.json();
-            if(data.success) { alert(data.message); updateData(); } 
+            if(data.success) { 
+                alert(data.message); 
+                isManuallyStopped = false; // RESET Flag agar mining jalan
+                updateData(); 
+            } 
             else { alert("Gagal: " + data.message); }
         } catch(e) { alert("Error Server"); }
     }
 
-    // --- 2. FITUR STOP AUTO MINING (DIPERBAIKI) ---
+    // --- 3. FUNGSI STOP (DIPERBAIKI) ---
     function stopAutoMine() {
-        if(confirm("Yakin hentikan Auto Mining?")) {
-            // Matikan Flag
+        if(confirm("Yakin hentikan Auto Mining? (Waktu sewa tetap berjalan)")) {
             isAutoLoopRunning = false; 
-            // Ganti Session ID untuk memutus loop hash yang sedang berjalan
-            currentSessionId = currentSessionId + 1; 
+            currentSessionId++; 
+            isManuallyStopped = true; // <--- AKTIFKAN REM TANGAN
             
-            // UI Feedback Langsung
-            const log = document.getElementById('statusLog');
-            log.innerHTML = "<span style='color:red;'>🛑 STOPPED (User Request)</span>";
+            document.getElementById('statusLog').innerHTML = "<span style='color:red;'>🛑 STOPPED (User Request)</span>";
             document.getElementById('btnStop').style.display = 'none';
             document.getElementById('btnMine').disabled = false;
         }
     }
 
     async function autoMineLoop(sessionId) {
-        while(isAutoLoopRunning && sessionId === currentSessionId) {
+        while(isAutoLoopRunning && sessionId === currentSessionId && !isManuallyStopped) {
             document.getElementById('statusLog').innerHTML = "🤖 Bot: <span style='color:white;'>Mencari hash...</span>";
             
-            // Tunggu proses mining selesai satu block
             await startMining(true, sessionId);
             
-            // Pengecekan Kritis: Apakah user menekan stop saat startMining berjalan?
-            if (sessionId !== currentSessionId || !isAutoLoopRunning) {
-                break; // Keluar loop total
-            }
+            if (sessionId !== currentSessionId || !isAutoLoopRunning || isManuallyStopped) break; 
             
-            // Jeda 2 detik
             await new Promise(r => setTimeout(r, 2000));
             
-            // Cek waktu sewa
             if(Date.now()/1000 > autoMineExpiry) { 
                 isAutoLoopRunning = false; 
                 updateData(); 
@@ -391,8 +393,7 @@
         if(!isAuto) log.innerText = "Menghubungkan...";
 
         try {
-            // Jika auto mining sudah distop sebelum fetch job, batalkan
-            if(isAuto && sessionId !== currentSessionId) return;
+            if(isAuto && (sessionId !== currentSessionId || isManuallyStopped)) return;
 
             const jobRes = await fetch('/get_mining_job');
             const job = await jobRes.json();
@@ -404,14 +405,10 @@
 
             await new Promise(resolve => {
                 const miningStep = () => {
-                    // --- PENGECEKAN KRITIS UNTUK STOP ---
-                    // Jika session ID berubah (user klik stop), hentikan paksa loop hashing
-                    if(isAuto && sessionId !== currentSessionId) {
-                        resolve(); 
-                        return;
+                    if(isAuto && (sessionId !== currentSessionId || isManuallyStopped)) {
+                        resolve(); return;
                     }
 
-                    // Loop hashing diperkecil ke 500 (biar UI lebih responsif terhadap tombol stop)
                     for(let i=0; i<500; i++) { 
                         const guess = `${lastProof}${proof}`;
                         const hash = sha256(guess); 
@@ -422,14 +419,13 @@
                     if(found) resolve(); 
                     else if(!isAutoLoopRunning && isAuto) resolve(); 
                     else if(proof > 10000000) { resolve(); } 
-                    else setTimeout(miningStep, 0); // Yield ke main thread
+                    else setTimeout(miningStep, 0);
                 };
                 miningStep();
             });
 
-            // Submit hanya jika ketemu DAN sesi masih valid (belum distop)
             if(found) {
-                if(isAuto && sessionId !== currentSessionId) return; 
+                if(isAuto && (sessionId !== currentSessionId || isManuallyStopped)) return; 
 
                 if(!isAuto) log.innerText = "Hash ditemukan! Mengirim...";
                 const res = await fetch('/submit_block', {
