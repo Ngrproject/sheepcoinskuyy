@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
     <style>
-        /* --- MODERN GLASSMORPHISM THEME --- */
         :root {
             --primary-color: #8A2BE2;
             --secondary-color: #00d4ff;
@@ -19,12 +18,10 @@
             --bg-dark: #0f172a;
             --glass-bg: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
         body {
             font-family: 'Space Grotesk', sans-serif;
-            /* Latar belakang gradien dinamis untuk menonjolkan efek kaca */
             background-color: var(--bg-dark);
             background-image: 
                 radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
@@ -40,171 +37,72 @@
             align-items: center;
         }
 
-        /* Judul dengan efek gradien */
         h1.main-title {
             font-size: 2.5rem;
             margin-bottom: 20px;
             background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 2px 10px rgba(138, 43, 226, 0.3);
         }
 
-        /* Container utama agar rapi */
-        .container {
-            width: 100%;
-            max-width: 600px;
-            margin: auto;
-        }
+        .container { width: 100%; max-width: 600px; margin: auto; }
 
-        /* --- GLASS CARDS --- */
         .card {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px); /* Kunci efek kaca */
+            backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 30px;
             margin-bottom: 25px;
-            box-shadow: var(--glass-shadow);
-            transition: transform 0.3s ease;
-        }
-        
-        /* Sedikit efek hover pada card */
-        .card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        h2, h3 { margin-top: 0; font-weight: 700; }
-        p { color: #ccc; line-height: 1.6; }
-
-        /* --- MODERN INPUTS --- */
         input {
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(0, 0, 0, 0.2); /* Input lebih gelap dan 'tenggelam' */
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-family: inherit;
-            font-size: 1rem;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); /* Shadow dalam */
-            transition: 0.3s;
-            box-sizing: border-box;
-        }
-        input:focus {
-            outline: none;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 0 0 2px var(--secondary-color);
+            width: 100%; padding: 15px; margin: 10px 0;
+            background: rgba(0, 0, 0, 0.2); border: none; border-radius: 12px;
+            color: white; font-size: 1rem; box-sizing: border-box;
         }
 
-        /* --- MODERN BUTTONS --- */
         button {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            width: 100%; padding: 15px; border: none; border-radius: 12px;
+            font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.3s;
         }
-        button:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        button:active { transform: translateY(-1px); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        button:hover { transform: translateY(-3px); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-        .btn-connect {
-            background: linear-gradient(45deg, var(--accent-color), #e2761b);
-            color: white;
-            font-size: 1.2rem;
-            padding: 20px;
-        }
+        .btn-connect { background: linear-gradient(45deg, var(--accent-color), #e2761b); color: white; }
         .btn-mine { background: linear-gradient(45deg, var(--primary-color), #6a0dad); color: white; margin-top: 15px; }
         .btn-send { background: linear-gradient(45deg, var(--secondary-color), #00a8cc); color: #0f172a; margin-top: 15px; }
         .btn-stop { background: linear-gradient(45deg, var(--danger-color), #c0392b); color: white; margin-top: 15px; }
 
-        /* --- PACKAGE GRID --- */
-        .grid-packages {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
+        .grid-packages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
         .pkg-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--glass-border);
-            color: var(--secondary-color);
-            padding: 15px 10px;
-            font-size: 0.9rem;
-            border-radius: 16px;
-            backdrop-filter: blur(5px);
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            color: var(--secondary-color); padding: 15px 10px; font-size: 0.9rem; border-radius: 16px;
         }
-        .pkg-btn:hover {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
+        .pkg-btn:hover { background: var(--primary-color); color: white; }
 
-        /* --- ACTIVE PANEL --- */
         #activeRentalPanel {
-            background: rgba(46, 213, 115, 0.15) !important;
-            border: 1px solid var(--success-color) !important;
-            backdrop-filter: blur(10px);
+            background: rgba(46, 213, 115, 0.15); border: 1px solid var(--success-color);
+            padding: 15px; border-radius: 12px; margin-top: 15px;
         }
 
-        /* --- LIST ITEMS (History & Chain) --- */
         .tx-item, .block-item {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: rgba(255, 255, 255, 0.03); padding: 15px; margin-bottom: 10px;
+            border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
             font-size: 0.9rem;
-            transition: 0.3s;
-        }
-        .tx-item:hover, .block-item:hover {
-            background: rgba(255, 255, 255, 0.07);
-            border-color: rgba(255,255,255,0.1);
         }
 
-        /* Block Chain Specific */
-        .block-item {
-            display: block; /* Stack content */
-            border-left: 4px solid var(--secondary-color);
-            text-align: left;
-        }
+        .block-item { border-left: 4px solid var(--secondary-color); text-align: left; }
         .block-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .hash-text {
-            font-family: 'Courier New', monospace;
-            font-size: 0.75rem;
-            color: #aaa;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 6px;
-            word-break: break-all;
-        }
+        .hash-text { font-family: monospace; font-size: 0.75rem; color: #aaa; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; word-break: break-all; }
 
-        /* Colors */
         .tx-in { color: var(--success-color); font-weight: bold; }
         .tx-out { color: var(--danger-color); font-weight: bold; }
         .tx-mine { color: #ffd700; font-weight: bold; }
-        #timerDisplay { font-size: 1.5rem; font-weight: 800; color: var(--success-color); margin: 15px 0; text-shadow: 0 0 10px rgba(46, 213, 115, 0.4); }
+        #timerDisplay { font-size: 1.5rem; font-weight: 800; color: var(--success-color); margin: 15px 0; }
         #balance { font-weight: 800; background: linear-gradient(to right, #fff, var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-        /* Layout Helper */
-        #loginArea {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 60vh;
-            text-align: center;
-        }
-        .balance-container { text-align: center; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -212,25 +110,24 @@
     <h1 class="main-title">🐑 SheepCoin Cloud</h1>
     
     <div class="container">
-        <div id="loginArea">
+        <div id="loginArea" style="min-height: 60vh; display:flex; flex-direction:column; justify-content:center;">
             <div class="card" style="text-align: center;">
                 <h2>Selamat Datang</h2>
-                <p>Hubungkan MetaMask Anda untuk mengakses Dashboard Mining & Transaksi Web3.</p>
+                <p>Hubungkan MetaMask Anda untuk mengakses Dashboard.</p>
                 <button class="btn-connect" onclick="connectWallet()">🦊 Connect MetaMask</button>
             </div>
         </div>
 
         <div id="dashboard" style="display:none;">
-            <div class="balance-container">
+            <div style="text-align: center; margin-bottom: 30px;">
                 <p style="margin-bottom: 5px; color:#aaa;">Dompet Terhubung:</p>
-                <div id="myAddress" style="color:var(--secondary-color); font-family:monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">...</div>
-                <h2 style="font-size:3rem; margin:0;">Isi Dompet:</h2>
-                <h2 style="font-size:3.5rem; margin:0;"><span id="balance">0.0000</span> SHP</h2>
+                <div id="myAddress" style="color:var(--secondary-color); font-family:monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 20px; display: inline-block;">...</div>
+                <h2 style="font-size:3.5rem; margin:10px 0;"><span id="balance">0.0000</span> SHP</h2>
             </div>
             
             <div class="card">
                 <h3>🤖 Auto Mining Rental</h3>
-                <p>Sewa bot cloud untuk melakukan mining otomatis tanpa perlu klik manual.</p>
+                <p>Sewa bot cloud untuk melakukan mining otomatis.</p>
                 
                 <div id="rentalPanel">
                     <div class="grid-packages">
@@ -240,10 +137,10 @@
                     </div>
                 </div>
 
-                <div id="activeRentalPanel" class="card" style="display:none;">
-                    <span style="font-weight: 700; font-size: 1.1rem;">⚡ Auto Mining Sedang Aktif!</span>
+                <div id="activeRentalPanel" style="display:none;">
+                    <span style="font-weight: 700; font-size: 1.1rem;">⚡ Auto Mining Aktif!</span>
                     <div id="timerDisplay">00:00:00</div>
-                    <p style="font-size:0.9rem; margin:0;">(Bot sedang bekerja, jangan tutup tab ini)</p>
+                    <p style="font-size:0.9rem; margin:0;">(Bot bekerja, jangan tutup tab ini)</p>
                 </div>
                 
                 <div id="statusLog" style="color: #ffd700; margin-top: 20px; font-weight: 500; min-height:25px; text-align: center;">Idle</div>
@@ -254,14 +151,13 @@
 
             <div class="card">
                 <h3>💸 Kirim Koin</h3>
-                <p>Transfer SHP ke pengguna lain secara instan.</p>
-                <input id="recipient" placeholder="Alamat Penerima (Contoh: 0xAbC...)" autocomplete="off">
-                <input id="amount" placeholder="Jumlah SHP (Contoh: 1.5)" type="number" step="0.0001">
+                <input id="recipient" placeholder="Alamat Penerima (0x...)" autocomplete="off">
+                <input id="amount" placeholder="Jumlah SHP" type="number" step="0.0001">
                 <button class="btn-send" id="btnSend" onclick="sendCoin()">🚀 Kirim (Sign MetaMask)</button>
             </div>
 
             <div class="card">
-                <h3>📜 Riwayat Dompet Anda</h3>
+                <h3>📜 Riwayat Dompet</h3>
                 <div id="myHistory" style="max-height: 300px; overflow-y: auto; margin-top: 20px;">
                     <p style="text-align:center;">Memuat data...</p>
                 </div>
@@ -269,7 +165,7 @@
 
             <div class="card">
                 <h3>🔗 Global Blockchain Ledger</h3>
-                <p style="margin-bottom: 20px;">Aktivitas 10 blok terakhir di jaringan SheepCoin.</p>
+                <p style="margin-bottom: 20px;">10 blok terakhir di jaringan.</p>
                 <div id="chainList"></div>
             </div>
         </div>
@@ -297,7 +193,6 @@
         if(!userAddress) return;
         
         try {
-            // 1. Info Wallet & Auto Mine
             let res = await fetch('/wallet_info', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -306,7 +201,6 @@
             let data = await res.json();
             document.getElementById('balance').innerText = data.balance.toFixed(4);
             
-            // Logic Auto Mine Timer
             const now = data.server_time;
             autoMineExpiry = data.auto_mine_expires;
             const rentalPanel = document.getElementById('rentalPanel');
@@ -322,7 +216,12 @@
                 const m = Math.floor(timeLeft / 60);
                 const s = timeLeft % 60;
                 timerDisplay.innerText = `${m}m ${s}s`;
-                if (!isAutoLoopRunning) { isAutoLoopRunning = true; autoMineLoop(); }
+                
+                // Pastikan loop jalan, tapi jangan double
+                if (!isAutoLoopRunning) { 
+                    isAutoLoopRunning = true; 
+                    autoMineLoop(); 
+                }
             } else {
                 rentalPanel.style.display = 'block';
                 activePanel.style.display = 'none';
@@ -333,9 +232,17 @@
         } catch(e) {}
         
         loadHistory();
-        loadChain(); // Load Global Chain
+        loadChain();
     }
     
+    // FORMAT WAKTU KE LOKAL (WIB/GMT+7)
+    function formatTime(timestamp) {
+        return new Date(timestamp * 1000).toLocaleString('id-ID', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+
     async function loadHistory() {
          try {
             let histRes = await fetch('/my_transactions', {
@@ -345,6 +252,7 @@
             });
             let histData = await histRes.json();
             let histHtml = '';
+            
             if(histData.transactions.length === 0){
                 histHtml = '<p style="text-align:center; opacity:0.7;">Belum ada transaksi.</p>';
             } else {
@@ -355,12 +263,15 @@
                     let addr = tx.type === 'IN' ? tx.sender : tx.recipient;
                     if(tx.type !== 'MINING') addr = addr.substring(0,6)+'...'; else addr = 'Reward';
 
+                    // FIX: Tampilkan Waktu Lokal
+                    let timeStr = tx.timestamp ? formatTime(tx.timestamp) : '-';
+
                     histHtml += `<div class="tx-item">
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="font-size:1.2rem">${icon}</span>
                             <div>
                                 <div style="font-weight:bold;">${tx.type}</div>
-                                <div style="font-size:0.75rem; opacity:0.8;">${addr} (Block #${tx.block})</div>
+                                <div style="font-size:0.75rem; opacity:0.8;">${addr} | ${timeStr}</div>
                             </div>
                         </div>
                         <span class="${color}" style="font-size:1.1rem;">${sign}${parseFloat(tx.amount).toFixed(4)}</span>
@@ -378,11 +289,14 @@
             let html = '';
             
             chainData.chain.forEach(b => {
+                // FIX: Tampilkan Waktu Lokal
+                let localTime = formatTime(b.timestamp);
+
                 html += `
                 <div class="block-item">
                     <div class="block-header">
                         <strong style="color:var(--secondary-color);">Block #${b.index}</strong>
-                        <span style="font-size:0.75rem; opacity:0.7;">${b.timestamp}</span>
+                        <span style="font-size:0.75rem; opacity:0.7;">${localTime}</span>
                     </div>
                     <div class="hash-text">${b.hash}</div>
                     <div style="font-size:0.8rem; margin-top:8px; display:flex; justify-content:space-between;">
@@ -411,19 +325,32 @@
     }
 
     function stopAutoMine() {
-        if(confirm("Yakin hentikan Auto Mining? Waktu sewa akan tetap berjalan.")) {
-            isAutoLoopRunning = false;
-            document.getElementById('statusLog').innerText = "🛑 Dihentikan Manual oleh User";
+        if(confirm("Yakin hentikan Auto Mining?")) {
+            isAutoLoopRunning = false; // Flag dimatikan
+            document.getElementById('statusLog').innerText = "🛑 Berhenti...";
             document.getElementById('btnStop').style.display = 'none';
+            // Paksa update tampilan
+            setTimeout(updateData, 500); 
         }
     }
 
+    // FIX: BUG AUTO MINING TIDAK MAU BERHENTI
     async function autoMineLoop() {
         while(isAutoLoopRunning) {
-            document.getElementById('statusLog').innerHTML = "🤖 Auto Bot: <span style='color:white;'>Sedang mencari hash...</span>";
+            document.getElementById('statusLog').innerHTML = "🤖 Bot: <span style='color:white;'>Mencari hash...</span>";
+            
             await startMining(true);
+            
+            // Cek Ganda: Jika tombol stop ditekan saat mining, langsung break
+            if (!isAutoLoopRunning) break; 
+            
             await new Promise(r => setTimeout(r, 2000));
-            if(Date.now()/1000 > autoMineExpiry) { isAutoLoopRunning = false; updateData(); }
+            
+            // Cek Expired
+            if(Date.now()/1000 > autoMineExpiry) { 
+                isAutoLoopRunning = false; 
+                updateData(); 
+            }
         }
     }
 
@@ -431,7 +358,7 @@
         const btn = document.getElementById('btnMine');
         const log = document.getElementById('statusLog');
         if(!isAuto) btn.disabled = true;
-        if(!isAuto) log.innerText = "Menghubungkan ke server...";
+        if(!isAuto) log.innerText = "Menghubungkan...";
 
         try {
             const jobRes = await fetch('/get_mining_job');
@@ -442,28 +369,31 @@
             let found = false;
             const lastProof = job.last_proof;
 
-            if(!isAuto) log.innerText = "Mulai melakukan hashing (PoW)...";
-
             await new Promise(resolve => {
                 const miningStep = () => {
-                    for(let i=0; i<3000; i++) { // Sedikit optimasi loop
+                    // Cek Ganda: Hentikan kalkulasi jika tombol stop ditekan
+                    if(isAuto && !isAutoLoopRunning) {
+                        resolve();
+                        return;
+                    }
+
+                    for(let i=0; i<3000; i++) { 
                         const guess = `${lastProof}${proof}`;
                         const hash = sha256(guess); 
                         if(hash.startsWith(target)) { found = true; break; }
                         proof++;
                     }
                     if(found) resolve(); 
-                    else if(!isAutoLoopRunning && isAuto) resolve();
-                    else if(proof > 10000000) { // Safety break jika terlalu lama
-                        log.innerText = "Timeout. Mencoba ulang..."; resolve(); 
-                    }
+                    else if(!isAutoLoopRunning && isAuto) resolve(); // Stop exit
+                    else if(proof > 10000000) { resolve(); } // Timeout safety
                     else setTimeout(miningStep, 0);
                 };
                 miningStep();
             });
 
-            if(found) {
-                if(!isAuto) log.innerText = "Hash ditemukan! Mengirim hasil...";
+            // Hanya submit jika benar-benar ketemu & tidak di-stop
+            if(found && (!isAuto || isAutoLoopRunning)) {
+                if(!isAuto) log.innerText = "Hash ditemukan! Mengirim...";
                 const res = await fetch('/submit_block', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -476,7 +406,7 @@
                     if(!isAuto) alert(msg);
                 }
             }
-        } catch(e) { console.error(e); if(!isAuto) log.innerText = "Error koneksi server"; }
+        } catch(e) { console.error(e); }
         
         if(!isAuto) { btn.disabled = false; updateData(); }
     }
@@ -485,26 +415,26 @@
         const recipient = document.getElementById('recipient').value;
         const amount = document.getElementById('amount').value;
         const btn = document.getElementById('btnSend');
-        if(!recipient || !amount) { alert("Mohon isi alamat penerima dan jumlah koin."); return; }
+        if(!recipient || !amount) { alert("Data tidak lengkap."); return; }
 
         try {
-            btn.innerText = "Menunggu Tanda Tangan MetaMask...";
+            btn.innerText = "Sign MetaMask...";
             btn.disabled = true;
             const provider = new ethers.providers.Web3Provider(window.ethereum);
             const signer = provider.getSigner();
             await signer.signMessage(`Konfirmasi: Kirim ${amount} SHP ke ${recipient}`);
             
-            btn.innerText = "Mengirim Transaksi...";
-            const res = await fetch('/transact', {
+            btn.innerText = "Mengirim...";
+            await fetch('/transact', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sender: userAddress, recipient: recipient, amount: amount })
             });
-            alert("Transaksi Berhasil Dikirim!");
+            alert("Berhasil Dikirim!");
             document.getElementById('recipient').value = '';
             document.getElementById('amount').value = '';
             updateData();
-        } catch(e) { alert("Transaksi Dibatalkan."); }
+        } catch(e) { alert("Batal."); }
         btn.innerText = "🚀 Kirim (Sign MetaMask)";
         btn.disabled = false;
     }
