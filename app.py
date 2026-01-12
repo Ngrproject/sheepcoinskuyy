@@ -4,29 +4,31 @@ import os
 import psycopg2
 from time import time
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template, session, redirect, url_for
-from urllib.parse import urlparse
+from flask import Flask, jsonify, request, render_template
+
+# ==========================================
+# KONFIGURASI DAN DATABASE
+# ==========================================
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key')
-
-# Gunakan URL Database dari Environment Variable (untuk Render/Neon)
-# Jika tes lokal, ganti string di bawah dengan koneksi Neon Anda
 DATABASE_URL = os.environ.get('DATABASE_URL') 
 
-# KONFIGURASI GAME
+# Konfigurasi Game Mining
 MINING_DIFFICULTY = 4 
-BASE_REWARD = 1.0 # Reward
+BASE_REWARD = 1.0 
 
 def get_db():
+    # Membuka koneksi ke PostgreSQL (Neon Tech)
     conn = psycopg2.connect(DATABASE_URL)
     return conn
 
 def init_db():
+    """Fungsi untuk membuat tabel database jika belum ada"""
     conn = get_db()
     c = conn.cursor()
     
-    # Buat Tabel Users
+    # 1. Tabel User
     c.execute("""
     CREATE TABLE IF NOT EXISTS users (
         wallet TEXT PRIMARY KEY,
@@ -34,7 +36,7 @@ def init_db():
     )
     """)
     
-    # Buat Tabel Blocks
+    # 2. Tabel Blocks
     c.execute("""
     CREATE TABLE IF NOT EXISTS blocks (
         id SERIAL PRIMARY KEY,
@@ -46,7 +48,7 @@ def init_db():
     )
     """)
     
-    # Buat Tabel Transactions
+    # 3. Tabel Transactions
     c.execute("""
     CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
@@ -57,7 +59,7 @@ def init_db():
     )
     """)
     
-    # Cek Genesis Block
+    # 4. Cek Genesis Block (Block Pertama)
     c.execute("SELECT COUNT(*) FROM blocks")
     if c.fetchone()[0] == 0:
         c.execute(
@@ -68,45 +70,66 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- HELPER ---
+# ==========================================
+# FUNGSI BANTUAN (HELPER)
+# ==========================================
+
 def hash_block(block):
-    # Kita buat hash sederhana dari properti blok
+    """Membuat hash SHA-256 dari sebuah block"""
     block_string = json.dumps(block, sort_keys=True).encode()
     return hashlib.sha256(block_string).hexdigest()
 
 def verify_proof(last_proof, proof):
-    # Verifikasi apakah hash dimulai dengan 0000 (sesuai difficulty)
+    """Memverifikasi apakah hasil mining valid"""
     guess = f'{last_proof}{proof}'.encode()
     guess_hash = hashlib.sha256(guess).hexdigest()
     return guess_hash.startswith("0" * MINING_DIFFICULTY)
 
 def last_block():
+    """Mengambil data block terakhir dari database"""
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT idx, timestamp, proof, previous_hash FROM blocks ORDER BY idx DESC LIMIT 1")
     row = c.fetchone()
     conn.close()
-    return {'index': row[0], 'timestamp': row[1], 'proof': row[2], 'previous_hash': row[3]}
+    return {
+        'index': row[0],
+        'timestamp': row[1],
+        'proof': row[2],
+        'previous_hash': row[3]
+    }
 
-# --- ROUTES ---
+# ==========================================
+# ROUTES (JALUR WEB)
+# ==========================================
 
 @app.route('/')
 def dashboard():
-    return render_template('index.html') # Logic login dipindah ke frontend (MetaMask)
+    return render_template('index.html')
+
+@app.route('/init_db_manual')
+def init_db_manual():
+    """Jalur darurat untuk membuat tabel jika server error"""
+    try:
+        init_db()
+        return "Database berhasil diinisialisasi! Tabel siap."
+    except Exception as e:
+        return f"Error inisialisasi: {str(e)}"
 
 @app.route('/wallet_info', methods=['POST'])
 def wallet_info():
+    """Mengambil saldo user"""
     data = request.get_json()
     wallet_id = data.get('address')
     
     conn = get_db()
     c = conn.cursor()
     
-    # Simpan user jika belum ada
+    # Daftar user baru jika belum ada
     c.execute("INSERT INTO users (wallet, username) VALUES (%s, 'Miner') ON CONFLICT (wallet) DO NOTHING", (wallet_id,))
     conn.commit()
 
-    # Hitung Saldo
+    # Hitung Saldo (Total Masuk - Total Keluar)
     c.execute("""
         SELECT 
         COALESCE(SUM(CASE WHEN recipient=%s THEN amount ELSE 0 END), 0) -
@@ -120,40 +143,40 @@ def wallet_info():
 
 @app.route('/get_mining_job')
 def get_mining_job():
-    # Endpoint bagi Client untuk meminta data blok terakhir agar bisa mulai mining
+    """Memberikan data block terakhir agar client bisa mining"""
     last = last_block()
     return jsonify({
         'last_proof': last['proof'],
-        'last_hash': hash_block(last), # Hash blok terakhir untuk rantai
+        'last_hash': hash_block(last), 
         'index': last['index'] + 1,
         'difficulty': MINING_DIFFICULTY
     })
 
 @app.route('/submit_block', methods=['POST'])
 def submit_block():
+    """Menerima hasil mining dari user"""
     data = request.get_json()
     proof = data.get('proof')
     miner_address = data.get('miner')
     
     last = last_block()
     
-    # 1. Verifikasi Proof of Work (Dilakukan Server)
+    # 1. Verifikasi Proof
     if not verify_proof(last['proof'], proof):
         return jsonify({'message': 'Proof Salah/Ditolak!', 'success': False}), 400
         
-    # 2. Jika Benar, Masukkan ke DB
+    # 2. Simpan Block Baru
     conn = get_db()
     c = conn.cursor()
     
     new_index = last['index'] + 1
     
-    # Catat Block
     c.execute(
         "INSERT INTO blocks (idx, timestamp, proof, previous_hash, miner) VALUES (%s, %s, %s, %s, %s)",
         (new_index, time(), proof, hash_block(last), miner_address)
     )
     
-    # Beri Reward
+    # 3. Beri Reward Mining
     c.execute(
         "INSERT INTO transactions (block_idx, sender, recipient, amount) VALUES (%s, '0', %s, %s)",
         (new_index, miner_address, BASE_REWARD)
@@ -166,6 +189,7 @@ def submit_block():
 
 @app.route('/chain')
 def chain():
+    """Melihat 10 block terakhir (Global)"""
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT idx, timestamp, proof, previous_hash, miner FROM blocks ORDER BY idx DESC LIMIT 10")
@@ -184,11 +208,12 @@ def chain():
 
 @app.route('/transact', methods=['POST'])
 def transact():
+    """Memproses transfer koin"""
     data = request.get_json()
     conn = get_db()
     c = conn.cursor()
     
-    # Ambil index block terakhir utk menempelkan transaksi
+    # Tempel transaksi ke block terakhir yang ada
     c.execute("SELECT idx FROM blocks ORDER BY idx DESC LIMIT 1")
     last_idx = c.fetchone()[0]
     
@@ -200,7 +225,41 @@ def transact():
     conn.close()
     return jsonify({'message': 'Transaksi sukses'})
 
+@app.route('/my_transactions', methods=['POST'])
+def my_transactions():
+    """Mengambil riwayat transaksi KHUSUS user yang login"""
+    data = request.get_json()
+    wallet = data.get('address')
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Ambil 10 transaksi terakhir dimana user terlibat (sender ATAU recipient)
+    c.execute("""
+        SELECT sender, recipient, amount, block_idx 
+        FROM transactions 
+        WHERE sender = %s OR recipient = %s
+        ORDER BY id DESC LIMIT 10
+    """, (wallet, wallet))
+    
+    rows = c.fetchall()
+    txs = []
+    for r in rows:
+        # Tentukan tipe transaksi
+        tx_type = 'IN' if r[1] == wallet else 'OUT'
+        if r[0] == '0': tx_type = 'MINING' # 0 adalah kode sistem (Reward Mining)
+        
+        txs.append({
+            'sender': r[0],
+            'recipient': r[1],
+            'amount': r[2],
+            'block': r[3],
+            'type': tx_type
+        })
+        
+    conn.close()
+    return jsonify({'transactions': txs})
+
 if __name__ == '__main__':
-    # Init DB hanya perlu sekali, bisa di-comment setelah deploy pertama
-    # init_db() 
+    # init_db() # Bisa diaktifkan untuk test lokal
     app.run(debug=True)
